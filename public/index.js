@@ -111,37 +111,80 @@ function sendTransaction(isAdding) {
   populateChart();
   populateTable();
   populateTotal();
-  
-  // also send to server
-  fetch("/api/transaction", {
-    method: "POST",
-    body: JSON.stringify(transaction),
-    headers: {
-      Accept: "application/json, text/plain, */*",
-      "Content-Type": "application/json"
-    }
-  })
-  .then(response => {    
-    return response.json();
-  })
-  .then(data => {
-    if (data.errors) {
-      errorEl.textContent = "Missing Information";
-    }
-    else {
-      // clear form
-      nameEl.value = "";
-      amountEl.value = "";
-    }
-  })
-  .catch(err => {
-    // fetch failed, so save in indexed db
-    saveRecord(transaction);
 
-    // clear form
-    nameEl.value = "";
-    amountEl.value = "";
-  });
+  // save to local database every time ignoring internet
+  console.log(`Dev testing, skipping network, straight to indexedDB save`);
+  saveRecord(transaction);
+  
+  // // also send to server
+  // fetch("/api/transaction", {
+  //   method: "POST",
+  //   body: JSON.stringify(transaction),
+  //   headers: {
+  //     Accept: "application/json, text/plain, */*",
+  //     "Content-Type": "application/json"
+  //   }
+  // })
+  // .then(response => {    
+  //   return response.json();
+  // })
+  // .then(data => {
+  //   if (data.errors) {
+  //     errorEl.textContent = "Missing Information";
+  //   }
+  //   else {
+  //     // clear form
+  //     nameEl.value = "";
+  //     amountEl.value = "";
+  //   }
+  // })
+  // .catch(err => {
+  //   // fetch failed, so save in indexed db
+  //   console.log(`Failed to post transaction, storing for later`)
+  //   saveRecord(transaction);
+
+  //   // clear form
+  //   nameEl.value = "";
+  //   amountEl.value = "";
+  // });
+}
+
+async function saveRecord(transaction){
+
+  console.log('transaction being parsed in is: ', transaction);
+
+  const dbRequest = window.indexedDB.open("transactionDatabase", 1);
+
+  // create the database object store structure - equivalent to a collection
+  dbRequest.onupgradeneeded = event => {
+    console.log(`Upgrade needed for database`);
+    const db = event.target.result;
+    const transactionStore = db.createObjectStore("offlineTransactions", {keyPath: "transactionId"});
+    // Creates a statusIndex that we can query on.
+    transactionStore.createIndex("transactionId", "id"); 
+  }
+
+  dbRequest.onsuccess = () => {
+    const db = dbRequest.result;
+    console.log('Bang')
+
+    const transaction = db.transaction(["offlineTransactions"], "readwrite");
+
+    console.log('Bang 2')
+    const transactionStore = transaction.objectStore("offlineTransactions");
+    // const transIndex = transactionStore.index("transactionId"); for cursor work returning all
+    let randomIndex = Math.floor(Math.random()*10000);
+
+    let transObj = transactionStore.add({
+      transactionId: randomIndex,
+      name: transaction.name,
+      value: transaction.value,
+      date: transaction.date,
+    });
+
+    console.log('transObj after saving in db: ', transObj);
+
+  }
 }
 
 document.querySelector("#add-btn").onclick = function() {
