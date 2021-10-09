@@ -5,10 +5,12 @@ const compression = require("compression");
 const dotenv = require('dotenv');
 const Logger = require("./libs/logger");
 const configuredMorgan = require("./config/morgan");
+const apiRoute = require('./routes/api')
 dotenv.config();
 
 const db_url = process.env.MONGODB_URL;
-const PORT = process.env.SERVER_PORT;
+const PORT = process.env.PORT || 28017;
+Logger.info(`HTTP Serving on port: ${PORT}`);
 
 const app = express();
 
@@ -21,7 +23,7 @@ app.use(express.json());
 
 app.use(express.static("public"));
 // routes
-app.use(require("./routes/api.js"));
+app.use(apiRoute);
 
 // DATABASE CONNECTION
 const connectionParams={
