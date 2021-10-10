@@ -1,18 +1,124 @@
 let transactions = [];
 let myChart;
+let db;
+let budgetVersion = 2;
 
-fetch("/api/transaction")
+const request = indexedDB.open("transactionDatabase", budgetVersion || 1);
+
+request.onupgradeneeded = e => {
+
+  console.log('Upgrade needed in IndexDB');
+
+  // get the old and new versions of the database, fall back on the current version of the db for when newVersion is not defined. This is the case when the initial database is created using an update
+  const { oldVersion } = e;
+  const newVersion = e.newVersion || db.version;
+
+  console.log(`DB Updated from version ${oldVersion} to ${newVersion}`);
+
+  // update the global database reference since the version was updated
+  db = e.target.result;
+
+  // if there are no object stores in the database, create a new one for offline transactions
+  if(db.objectStoreNames.length === 0){
+    db.createObjectStore("offlineTransactions", { autoIncrement: true})
+  }
+}
+
+request.onerror = (e) => {
+  console.error(`The database request raised an error ${e.target.errorCode}`);
+}
+
+request.onsuccess = async (e) => {
+  console.log('Successfully connected to network database services')
+  // update the global database reference
+  db = e.target.result
+
+  // Check if app is online before reading from db
+  if (navigator.onLine) {
+    console.log('Backend online! 🗄️');
+    await syncDatabase();
+  }
+}
+
+async function resetUi(){
+  console.log('resetting ui');
+  fetch("/api/transaction")
   .then(response => {
     return response.json();
   })
   .then(data => {
     // save db data on global variable
     transactions = data;
-
+  
     populateTotal();
     populateTable();
     populateChart();
   });
+}
+
+async function saveTransaction(data){
+
+  console.log('transaction being parsed in is: ', data);
+
+  const transaction = db.transaction(["offlineTransactions"], "readwrite");
+
+  const transactionStore = transaction.objectStore("offlineTransactions");
+
+  transactionStore.add(data)
+
+  console.log('transaction stored in indexDB');
+
+
+  // After adding to local, check if backend is available, then call sync
+  if (navigator.onLine) {
+    console.log('Backend online! 🗄️');
+    await syncDatabase();
+  }
+  
+}
+
+async function syncDatabase(){
+  console.log('Synchronizing database');
+
+  // Open a transaction for the offlineTransactions store, read only
+  let transaction = db.transaction(['offlineTransactions'], 'readonly');
+
+  // access your BudgetStore object
+  const store = transaction.objectStore('offlineTransactions');
+
+  // Get all records from store and set to a variable
+  const getAllTransactions = store.getAll();
+
+  // If the request was successful
+  getAllTransactions.onsuccess = function () {
+    // If there are items in the store, we need to bulk add them when we are back online
+    if (getAllTransactions.result.length > 0) {
+      fetch('/api/transaction/bulk', {
+        method: 'POST',
+        body: JSON.stringify(getAllTransactions.result),
+        headers: {
+          Accept: 'application/json, text/plain, */*',
+          'Content-Type': 'application/json',
+        },
+      })
+        .then(async (response) => response.json())
+        .then((res) => {
+          // If our returned response is not empty
+          if (res.length !== 0) {
+            // Open another transaction to offlineTransaction with read and write since we are deleting the contents
+            transaction = db.transaction(['offlineTransactions'], 'readwrite');
+
+            const replacementStore = transaction.objectStore('offlineTransactions');
+
+            console.log('Cleared local database');
+            replacementStore.clear();
+             // re call database entries from backend and re render ui
+            resetUi();
+          }
+        });
+    }
+  };
+}
 
 function populateTotal() {
   // reduce transaction amounts to a single total value
@@ -113,120 +219,8 @@ function sendTransaction(isAdding) {
   populateTotal();
 
   // save to local database every time ignoring internet
-  console.log(`Dev testing, skipping network, straight to indexedDB save`);
-  saveRecord(transaction);
-
-  getRecord();
-  
-  // // also send to server
-  // fetch("/api/transaction", {
-  //   method: "POST",
-  //   body: JSON.stringify(transaction),
-  //   headers: {
-  //     Accept: "application/json, text/plain, */*",
-  //     "Content-Type": "application/json"
-  //   }
-  // })
-  // .then(response => {    
-  //   return response.json();
-  // })
-  // .then(data => {
-  //   if (data.errors) {
-  //     errorEl.textContent = "Missing Information";
-  //   }
-  //   else {
-  //     // clear form
-  //     nameEl.value = "";
-  //     amountEl.value = "";
-  //   }
-  // })
-  // .catch(err => {
-  //   // fetch failed, so save in indexed db
-  //   console.log(`Failed to post transaction, storing for later`)
-  //   saveRecord(transaction);
-
-  //   // clear form
-  //   nameEl.value = "";
-  //   amountEl.value = "";
-  // });
+  saveTransaction(transaction);
 }
-
-async function saveRecord(data){
-
-  console.log('transaction being parsed in is: ', data);
-  
-  // get the database connection
-  const dbRequest = getIndexDBConnection();
-  
-  // if successful, select the db as the request result, open transaction, and add the transaction details to the object store with a transactionId as the key
-  dbRequest.onsuccess = () => {
-    const db = dbRequest.result;
-    const transaction = db.transaction(["offlineTransactions"], "readwrite");
-    const transactionStore = transaction.objectStore("offlineTransactions");
-    // const transIndex = transactionStore.index("transactionId"); for cursor work returning all
-    let randomIndex = Math.floor(Math.random()*10000);
-
-    let transObj = transactionStore.add({
-      transactionId: randomIndex,
-      ...data
-    });
-
-    console.log('transObj after saving in db: ', transObj);
-
-  }
-}
-
-/**
- * Function that gets a single transaction or all transactions if id not passed
- * @param {string} id 
- * @return {list}  result
- */
-async function getRecord(id){
-  let dbRequest = getIndexDBConnection();
-
-  dbRequest.onsuccess = () => {
-    const db = dbRequest.result;
-    let transaction = db.transaction(["offlineTransactions"], "readwrite");
-    let transactionStore = transaction.objectStore('offlineTransactions');
-
-    var result = [];
-
-    // case for getting a single record with id
-    if(id){
-      const getOneRequest = transactionStore.get(id);
-      getOneRequest.onsuccess = () => {
-        console.log(getOneRequest.result);
-        result.push(getOneResult.result);
-      }
-    // case for getting all records
-    } else {
-      const getAllRequest = transactionStore.getAll();
-      getAllRequest.onsuccess = () => {
-        console.log(getAllRequest.result);
-        result = getAllRequest.result;
-      }
-    }
-    return result;
-  }
-}
-
-
-function getIndexDBConnection(){
-    const dbRequest = window.indexedDB.open("transactionDatabase", 1);
-
-    // create the database object store structure - equivalent to a collection
-    dbRequest.onupgradeneeded = event => {
-      console.log(`Upgrade needed for database`);
-      const db = event.target.result;
-      const transactionStore = db.createObjectStore("offlineTransactions", {keyPath: "transactionId"});
-      // Creates a statusIndex that we can query on.
-      transactionStore.createIndex("transactionId", "id"); 
-    }
-
-    return dbRequest;
-}
-
-getIndexDBConnection();
 
 document.querySelector("#add-btn").onclick = function() {
   sendTransaction(true);
@@ -235,3 +229,9 @@ document.querySelector("#add-btn").onclick = function() {
 document.querySelector("#sub-btn").onclick = function() {
   sendTransaction(false);
 };
+
+// initial loading from network and setup of ui
+resetUi();
+
+// Listen for app coming back online then sync local transactions
+window.addEventListener('online', syncDatabase);

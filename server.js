@@ -1,5 +1,4 @@
 const express = require("express");
-const logger = require("morgan");
 const mongoose = require("mongoose");
 const compression = require("compression");
 const dotenv = require('dotenv');
@@ -14,7 +13,6 @@ Logger.info(`HTTP Serving on port: ${PORT}`);
 
 const app = express();
 
-// app.use(logger("dev"));
 app.use(configuredMorgan);
 
 app.use(compression());
