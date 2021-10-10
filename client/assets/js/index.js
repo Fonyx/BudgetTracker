@@ -35,7 +35,6 @@ request.onsuccess = async (e) => {
 
   // Check if app is online before reading from db
   if (navigator.onLine) {
-    console.log('Backend online! 🗄️');
     await syncDatabase();
   }
 }
@@ -71,7 +70,6 @@ async function saveTransaction(data){
 
   // After adding to local, check if backend is available, then call sync
   if (navigator.onLine) {
-    console.log('Backend online! 🗄️');
     await syncDatabase();
   }
   
