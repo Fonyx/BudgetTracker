@@ -10,6 +10,8 @@
 
 A partial homework project to complete a budget trackers offline functionality  
 
+![Alt text](https://github.com/Fonyx/BudgetTracker/blob/main/client/assets/images/show.gif?raw=true "show capture gif")  
+
 ## Content 
 
 - [Dependencies](#dependencies)
