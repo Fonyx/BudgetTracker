@@ -34,7 +34,7 @@ mongoose.connect(db_url, connectionParams)
 .then(() => {
     console.log(`Connected to database @ BudgetTracker.uvvp5.mongodb.net`);
     app.listen(PORT, () => {
-        console.log('Server is running http://localhost:'+PORT);
+        console.log('Server is running with port:'+PORT);
     });
 })
 .catch( (err) => {
