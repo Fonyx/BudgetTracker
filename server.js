@@ -2,18 +2,18 @@ const express = require("express");
 const mongoose = require("mongoose");
 const compression = require("compression");
 const dotenv = require('dotenv');
-const Logger = require("./libs/logger");
-const configuredMorgan = require("./config/morgan");
+// const Logger = require("./libs/logger");
+// const configuredMorgan = require("./config/morgan");
 const apiRoute = require('./routes/api')
 dotenv.config();
 
 const db_url = process.env.MONGODB_URL;
 const PORT = process.env.PORT || 28017;
-Logger.info(`HTTP Serving on port: ${PORT}`);
+// Logger.info(`HTTP Serving on port: ${PORT}`);
 
 const app = express();
 
-app.use(configuredMorgan);
+// app.use(configuredMorgan);
 
 app.use(compression());
 app.use(express.urlencoded({ extended: true }));
