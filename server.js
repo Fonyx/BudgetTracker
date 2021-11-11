@@ -2,8 +2,6 @@ const express = require("express");
 const mongoose = require("mongoose");
 const compression = require("compression");
 const dotenv = require('dotenv');
-// const Logger = require("./libs/logger");
-// const configuredMorgan = require("./config/morgan");
 const apiRoute = require('./routes/api')
 dotenv.config();
 
@@ -32,11 +30,11 @@ const connectionParams={
 
 mongoose.connect(db_url, connectionParams)
 .then(() => {
-    Logger.info(`Connected to database @ BudgetTracker.uvvp5.mongodb.net`);
+    console.log(`Connected to database @ BudgetTracker.uvvp5.mongodb.net`);
     app.listen(PORT, () => {
-        Logger.info('Server is running http://localhost:'+PORT);
+        console.log('Server is running http://localhost:'+PORT);
     });
 })
 .catch( (err) => {
-    Logger.error(`Error connecting to the database. \n${err}`);
+    console.error(`Error connecting to the database. \n${err}`);
 })
