@@ -7,11 +7,8 @@ dotenv.config();
 
 const db_url = process.env.MONGODB_URL;
 const PORT = process.env.PORT || 28017;
-// Logger.info(`HTTP Serving on port: ${PORT}`);
 
 const app = express();
-
-// app.use(configuredMorgan);
 
 app.use(compression());
 app.use(express.urlencoded({ extended: true }));
